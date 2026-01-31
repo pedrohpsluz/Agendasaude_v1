@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import {
   Calendar,
   Clock,
@@ -34,12 +34,91 @@ import {
   savePoliticas,
 } from './profileService';
 
+// Interfaces de tipos
+interface Convenio {
+  nome: string;
+  planos: string[];
+}
+
+interface Especialidade {
+  nome: string;
+  duracao: string;
+  formaAtendimento: string;
+  convenios: string[];
+}
+
+interface Local {
+  id: number;
+  nome: string;
+  endereco: string;
+  cidade: string;
+  cep: string;
+  especialidades: string[];
+  horarios: string[];
+}
+
+interface DadosBancarios {
+  banco: string;
+  agencia: string;
+  conta: string;
+  tipoConta: string;
+  chavePix: string;
+}
+
+interface ConfiguracaoPreco {
+  local: string;
+  especialidade: string;
+  valor: string;
+  formasPagamento: string[];
+  cobrancaNoAgendamento: boolean;
+  percentualAdiantado: string;
+  dadosBancarios: DadosBancarios;
+}
+
+interface Pessoais {
+  nome: string;
+  nomeComercial: string;
+  email: string;
+  telefone: string;
+  celularCorporativo: string;
+  instagram: string;
+  site: string;
+  cpfCnpj: string;
+  crm: string;
+  areaSaude: string;
+  bio: string;
+  formaAtendimento: string;
+  convenios: Convenio[];
+}
+
+interface Areas {
+  especialidades: Especialidade[];
+  intervaloConsultas: string;
+}
+
+interface Precos {
+  configuracoes: ConfiguracaoPreco[];
+}
+
+interface PageProps {
+  setCurrentPage: (page: string) => void;
+  setUserLoggedIn: (loggedIn: boolean) => void;
+  setCurrentUserId: (id: string | null) => void;
+}
+
+interface ProfilePageProps {
+  setCurrentPage: (page: string) => void;
+  setUserLoggedIn: (loggedIn: boolean) => void;
+  currentUserId: string | null;
+  currentProfessionalId: string | null;
+  setCurrentProfessionalId: (id: string | null) => void;
+}
+
 export default function AgendaSaudeApp() {
   const [currentPage, setCurrentPage] = useState('landing');
-  const [userLoggedIn, setUserLoggedIn] = useState(false);
-  const [currentUserId, setCurrentUserId] = useState(null);
-  const [currentProfessionalId, setCurrentProfessionalId] = useState(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [, setUserLoggedIn] = useState(false);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentProfessionalId, setCurrentProfessionalId] = useState<string | null>(null);
 
   // Verificar sessão ao carregar
   useEffect(() => {
@@ -174,7 +253,7 @@ function Footer() {
 }
 
 // ==================== LANDING PAGE ====================
-function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
+function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }: PageProps) {
   const [formData, setFormData] = useState({
     nome: '',
     email: '',
@@ -185,7 +264,7 @@ function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
   });
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (formData.senha !== formData.confirmaSenha) {
@@ -208,7 +287,7 @@ function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
         '✅ Cadastro realizado com sucesso! Verifique seu email para confirmar.'
       );
       setUserLoggedIn(true);
-      setCurrentUserId(result.userId);
+      setCurrentUserId(result.userId ?? null);
       setCurrentPage('profile');
       localStorage.setItem('profileTab', 'pessoais');
     } else {
@@ -223,7 +302,7 @@ function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
     localStorage.setItem('profileTab', 'pessoais');
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -667,7 +746,7 @@ function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
 }
 
 // ==================== LOGIN PAGE ====================
-function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
+function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }: PageProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
@@ -679,11 +758,11 @@ function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
     telefone: '',
   });
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     if (isLogin) {
@@ -696,7 +775,7 @@ function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
       if (result.success) {
         alert('✅ Login realizado com sucesso!');
         setUserLoggedIn(true);
-        setCurrentUserId(result.userId);
+        setCurrentUserId(result.userId ?? null);
         setCurrentPage('profile');
         localStorage.setItem('profileTab', 'clientes');
       } else {
@@ -720,7 +799,7 @@ function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }) {
       if (result.success) {
         alert('✅ Cadastro realizado! Verifique seu email para confirmar.');
         setUserLoggedIn(true);
-        setCurrentUserId(result.userId);
+        setCurrentUserId(result.userId ?? null);
         setCurrentPage('profile');
         localStorage.setItem('profileTab', 'clientes');
       } else {
@@ -1022,13 +1101,13 @@ function ProfilePage({
   currentUserId,
   currentProfessionalId,
   setCurrentProfessionalId,
-}) {
+}: ProfilePageProps) {
   const initialTab = localStorage.getItem('profileTab') || 'pessoais';
   const [activeTab, setActiveTab] = useState(initialTab);
   const [saved, setSaved] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [pessoais, setPessoais] = useState({
+  const [pessoais, setPessoais] = useState<Pessoais>({
     nome: '',
     nomeComercial: '',
     email: '',
@@ -1044,14 +1123,14 @@ function ProfilePage({
     convenios: [],
   });
 
-  const [areas, setAreas] = useState({
+  const [areas, setAreas] = useState<Areas>({
     especialidades: [],
     intervaloConsultas: '10',
   });
 
-  const [locais, setLocais] = useState([]);
+  const [locais, setLocais] = useState<Local[]>([]);
 
-  const [precos, setPrecos] = useState({
+  const [precos, setPrecos] = useState<Precos>({
     configuracoes: [],
   });
 
@@ -1153,7 +1232,7 @@ function ProfilePage({
       }
     } catch (error) {
       console.error('💥 Erro crítico ao carregar dados:', error);
-      alert('Erro crítico: ' + error.message);
+      alert('Erro crítico: ' + (error instanceof Error ? error.message : String(error)));
     } finally {
       setIsLoading(false);
     }
@@ -1226,7 +1305,7 @@ function ProfilePage({
       setTimeout(() => setSaved(false), 3000);
     } catch (error) {
       console.error('❌ Erro ao salvar perfil:', error);
-      alert('❌ Erro ao salvar perfil: ' + error.message);
+      alert('❌ Erro ao salvar perfil: ' + (error instanceof Error ? error.message : String(error)));
     }
   };
 
@@ -1308,16 +1387,19 @@ function ProfilePage({
             <button
               onClick={() => {
                 const menu = document.getElementById('mobile-menu');
-                menu.classList.toggle('hidden');
+                menu?.classList.toggle('hidden');
               }}
               className="w-full bg-white border border-gray-300 rounded-lg px-4 py-3 flex items-center justify-between shadow-sm"
             >
               <div className="flex items-center gap-3">
-                {tabs.find((t) => t.id === activeTab) &&
-                  (() => {
-                    const Icon = tabs.find((t) => t.id === activeTab).icon;
+                {(() => {
+                  const activeTabData = tabs.find((t) => t.id === activeTab);
+                  if (activeTabData) {
+                    const Icon = activeTabData.icon;
                     return <Icon className="w-5 h-5 text-indigo-600" />;
-                  })()}
+                  }
+                  return null;
+                })()}
                 <span className="font-medium text-gray-900">
                   {tabs.find((t) => t.id === activeTab)?.label}
                 </span>
@@ -1350,7 +1432,7 @@ function ProfilePage({
                       setActiveTab(tab.id);
                       document
                         .getElementById('mobile-menu')
-                        .classList.add('hidden');
+                        ?.classList.add('hidden');
                     }}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 first:rounded-t-lg last:rounded-b-lg ${
                       activeTab === tab.id
