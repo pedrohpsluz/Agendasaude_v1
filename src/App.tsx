@@ -31,6 +31,7 @@ import {
   saveConvenios,
   saveEspecialidades,
   saveLocais,
+  savePrecos,
   savePoliticas,
 } from './profileService';
 
@@ -1293,6 +1294,13 @@ function ProfilePage({
         console.log('📍 Salvando locais:', locais);
         const locResult = await saveLocais(profId, locais);
         console.log('📤 Resultado locais:', locResult);
+      }
+
+      // Salvar preços
+      if (precos.configuracoes && precos.configuracoes.length > 0) {
+        console.log('💰 Salvando preços:', precos.configuracoes);
+        const precResult = await savePrecos(profId, precos.configuracoes);
+        console.log('📤 Resultado preços:', precResult);
       }
 
       // Salvar políticas

@@ -23,7 +23,7 @@ export async function loadProfessionalData(userId) {
 
     console.log('📋 Profissional encontrado:', professional ? 'SIM' : 'NÃO');
 
-    // 2. Buscar dados básicos da tabela users (email, telefone, cpf_cnpj, nome)
+    // 2. Buscar dados básicos da tabela users
     const { data: userData, error: userError } = await supabase
       .from('users')
       .select('nome, email, telefone, cpf_cnpj')
@@ -82,31 +82,43 @@ export async function loadProfessionalData(userId) {
       };
     }
 
-    // Profissional existe - combinar dados de ambas as tabelas e buscar dados relacionados
+    // Profissional existe - buscar dados relacionados
 
-    // 3. Buscar convênios
+    // 3. Buscar convênios (com planos em JSON)
     const { data: conveniosData, error: conveniosError } = await supabase
       .from('professional_convenios')
-      .select('nome')
+      .select('*')
       .eq('professional_id', professional.id);
 
     if (conveniosError) {
       console.error('❌ Erro ao buscar convênios:', conveniosError);
     }
 
-    const convenios = conveniosData ? conveniosData.map((c) => c.nome) : [];
+    const convenios = conveniosData
+      ? conveniosData.map((c) => ({
+          nome: c.nome,
+          planos: c.planos || [],
+        }))
+      : [];
 
     // 4. Buscar especialidades
     const { data: especialidadesData, error: especialidadesError } = await supabase
       .from('professional_especialidades')
-      .select('nome')
+      .select('*')
       .eq('professional_id', professional.id);
 
     if (especialidadesError) {
       console.error('❌ Erro ao buscar especialidades:', especialidadesError);
     }
 
-    const especialidades = especialidadesData ? especialidadesData.map((e) => e.nome) : [];
+    const especialidades = especialidadesData
+      ? especialidadesData.map((e) => ({
+          nome: e.nome,
+          duracao: e.duracao || '50',
+          formaAtendimento: e.forma_atendimento || 'Presencial',
+          convenios: e.convenios || [],
+        }))
+      : [];
 
     // 5. Buscar locais
     const { data: locaisData, error: locaisError } = await supabase
@@ -118,9 +130,47 @@ export async function loadProfessionalData(userId) {
       console.error('❌ Erro ao buscar locais:', locaisError);
     }
 
-    const locais = locaisData || [];
+    const locais = locaisData
+      ? locaisData.map((l) => ({
+          id: l.id,
+          nome: l.nome,
+          endereco: l.endereco || '',
+          cep: l.cep || '',
+          cidade: l.cidade || '',
+          especialidades: l.especialidades || [],
+          horarios: l.horarios || [],
+        }))
+      : [];
 
-    // 6. Buscar políticas
+    // 6. Buscar preços
+    const { data: precosData, error: precosError } = await supabase
+      .from('professional_precos')
+      .select('*')
+      .eq('professional_id', professional.id);
+
+    if (precosError) {
+      console.error('❌ Erro ao buscar preços:', precosError);
+    }
+
+    const precos = precosData
+      ? precosData.map((p) => ({
+          local: p.local || '',
+          especialidade: p.especialidade || '',
+          valor: p.valor || '',
+          formasPagamento: p.formas_pagamento || [],
+          cobrancaNoAgendamento: p.cobranca_no_agendamento || false,
+          percentualAdiantado: p.percentual_adiantado || '50',
+          dadosBancarios: p.dados_bancarios || {
+            banco: '',
+            agencia: '',
+            conta: '',
+            tipoConta: 'Corrente',
+            chavePix: '',
+          },
+        }))
+      : [];
+
+    // 7. Buscar políticas
     const { data: politicasData, error: politicasError } = await supabase
       .from('professional_politicas')
       .select('*')
@@ -131,44 +181,46 @@ export async function loadProfessionalData(userId) {
       console.error('❌ Erro ao buscar políticas:', politicasError);
     }
 
-    const politicas = politicasData ? {
-      cancelamento: {
-        prazoMinimo: politicasData.cancelamento_prazo_minimo || '24',
-        cobraMulta: politicasData.cancelamento_cobra_multa ?? true,
-        percentualMulta: politicasData.cancelamento_percentual_multa || '50',
-        permiteCancelamento: politicasData.cancelamento_permitido ?? true,
-      },
-      reagendamento: {
-        permitido: politicasData.reagendamento_permitido ?? true,
-        prazoMinimo: politicasData.reagendamento_prazo_minimo || '12',
-        limiteReagendamentos: politicasData.reagendamento_limite || '2',
-      },
-      faltas: {
-        cobraFalta: politicasData.faltas_cobra ?? true,
-        percentualCobranca: politicasData.faltas_percentual_cobranca || '100',
-        toleranciaAtraso: politicasData.faltas_tolerancia_atraso || '15',
-      },
-    } : {
-      cancelamento: {
-        prazoMinimo: '24',
-        cobraMulta: true,
-        percentualMulta: '50',
-        permiteCancelamento: true,
-      },
-      reagendamento: {
-        permitido: true,
-        prazoMinimo: '12',
-        limiteReagendamentos: '2',
-      },
-      faltas: {
-        cobraFalta: true,
-        percentualCobranca: '100',
-        toleranciaAtraso: '15',
-      },
-    };
+    const politicas = politicasData
+      ? {
+          cancelamento: {
+            prazoMinimo: politicasData.cancelamento_prazo_minimo || '24',
+            cobraMulta: politicasData.cancelamento_cobra_multa ?? true,
+            percentualMulta: politicasData.cancelamento_percentual_multa || '50',
+            permiteCancelamento: politicasData.cancelamento_permitido ?? true,
+          },
+          reagendamento: {
+            permitido: politicasData.reagendamento_permitido ?? true,
+            prazoMinimo: politicasData.reagendamento_prazo_minimo || '12',
+            limiteReagendamentos: politicasData.reagendamento_limite || '2',
+          },
+          faltas: {
+            cobraFalta: politicasData.faltas_cobra ?? true,
+            percentualCobranca: politicasData.faltas_percentual_cobranca || '100',
+            toleranciaAtraso: politicasData.faltas_tolerancia_atraso || '15',
+          },
+        }
+      : {
+          cancelamento: {
+            prazoMinimo: '24',
+            cobraMulta: true,
+            percentualMulta: '50',
+            permiteCancelamento: true,
+          },
+          reagendamento: {
+            permitido: true,
+            prazoMinimo: '12',
+            limiteReagendamentos: '2',
+          },
+          faltas: {
+            cobraFalta: true,
+            percentualCobranca: '100',
+            toleranciaAtraso: '15',
+          },
+        };
 
     const pessoais = {
-      nome: userData?.nome || '',
+      nome: userData?.nome || professional.nome || '',
       nomeComercial: professional.nome_comercial || '',
       email: userData?.email || '',
       telefone: userData?.telefone || '',
@@ -191,7 +243,7 @@ export async function loadProfessionalData(userId) {
         especialidades: especialidades,
         intervaloConsultas: professional.intervalo_consultas || '10',
         locais: locais,
-        precos: [],
+        precos: precos,
         politicas: politicas,
       },
     };
@@ -209,8 +261,24 @@ export async function saveProfessionalData(userId, pessoais) {
     }
 
     console.log('💾 Salvando dados pessoais para userId:', userId);
+    console.log('📦 Dados recebidos:', pessoais);
 
-    // Verificar se já existe
+    // 1. Atualizar dados na tabela users
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update({
+        nome: pessoais.nome || '',
+        telefone: pessoais.telefone || '',
+        cpf_cnpj: pessoais.cpfCnpj || '',
+      })
+      .eq('id', userId);
+
+    if (userUpdateError) {
+      console.error('⚠️ Erro ao atualizar usuário:', userUpdateError);
+      // Continuar mesmo com erro, pois pode ser problema de RLS
+    }
+
+    // 2. Verificar se já existe registro em professionals
     const { data: existingProf } = await supabase
       .from('professionals')
       .select('id')
@@ -219,39 +287,20 @@ export async function saveProfessionalData(userId, pessoais) {
 
     console.log('🔍 Profissional existente:', existingProf ? 'SIM' : 'NÃO');
 
-    // Preparar dados APENAS com campos que existem na tabela
+    // Preparar dados do profissional
     const professionalData = {
       user_id: userId,
+      nome_comercial: pessoais.nomeComercial || '',
+      crm_crp_cro: pessoais.crm || '',
+      celular_corporativo: pessoais.celularCorporativo || '',
+      instagram: pessoais.instagram || '',
+      site: pessoais.site || '',
+      area_saude: pessoais.areaSaude || 'Psicólogo',
+      bio: pessoais.bio || '',
+      forma_atendimento: pessoais.formaAtendimento || 'Online e Presencial',
     };
 
-    // Adicionar campos opcionais APENAS se tiverem valor
-    if (pessoais.nomeComercial) {
-      professionalData.nome_comercial = pessoais.nomeComercial;
-    }
-    if (pessoais.crm) {
-      professionalData.crm_crp_cro = pessoais.crm;
-    }
-    if (pessoais.celularCorporativo) {
-      professionalData.celular_corporativo = pessoais.celularCorporativo;
-    }
-    if (pessoais.instagram) {
-      professionalData.instagram = pessoais.instagram;
-    }
-    if (pessoais.site) {
-      professionalData.site = pessoais.site;
-    }
-    if (pessoais.areaSaude) {
-      professionalData.area_saude = pessoais.areaSaude;
-    }
-    if (pessoais.bio) {
-      professionalData.bio = pessoais.bio;
-    }
-    if (pessoais.formaAtendimento) {
-      professionalData.forma_atendimento = pessoais.formaAtendimento;
-    }
-
-    console.log('📦 Dados a salvar:', professionalData);
-    console.log('📋 Campos:', Object.keys(professionalData));
+    console.log('📦 Dados do profissional a salvar:', professionalData);
 
     let professionalId;
 
@@ -259,11 +308,10 @@ export async function saveProfessionalData(userId, pessoais) {
       // ATUALIZAR
       console.log('🔄 Atualizando registro existente...');
 
-      const { data: updatedData, error: updateError } = await supabase
+      const { error: updateError } = await supabase
         .from('professionals')
         .update(professionalData)
-        .eq('id', existingProf.id)
-        .select();
+        .eq('id', existingProf.id);
 
       if (updateError) {
         console.error('❌ Erro ao atualizar:', updateError);
@@ -284,15 +332,11 @@ export async function saveProfessionalData(userId, pessoais) {
 
       if (insertError) {
         console.error('❌ Erro ao inserir:', insertError);
-        console.error(
-          '💡 Se o erro mencionar uma coluna, ela não existe na tabela'
-        );
         throw insertError;
       }
 
       professionalId = newProf.id;
-      console.log('✅ Criado com sucesso!');
-      console.log('📄 Registro:', newProf);
+      console.log('✅ Criado com sucesso! ID:', professionalId);
     }
 
     return { success: true, professionalId };
@@ -325,21 +369,29 @@ export async function saveConvenios(professionalId, convenios) {
 
     // 2. Inserir novos convênios (se houver)
     if (convenios && convenios.length > 0) {
-      const conveniosData = convenios.map((convenio) => ({
-        professional_id: professionalId,
-        nome: convenio,
-      }));
+      // Filtrar convênios vazios
+      const conveniosValidos = convenios.filter((c) => c.nome && c.nome.trim() !== '');
 
-      const { error: insertError } = await supabase
-        .from('professional_convenios')
-        .insert(conveniosData);
+      if (conveniosValidos.length > 0) {
+        const conveniosData = conveniosValidos.map((convenio) => ({
+          professional_id: professionalId,
+          nome: convenio.nome,
+          planos: convenio.planos || [],
+        }));
 
-      if (insertError) {
-        console.error('❌ Erro ao inserir convênios:', insertError);
-        throw insertError;
+        console.log('📦 Dados de convênios a inserir:', conveniosData);
+
+        const { error: insertError } = await supabase
+          .from('professional_convenios')
+          .insert(conveniosData);
+
+        if (insertError) {
+          console.error('❌ Erro ao inserir convênios:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ Convênios salvos com sucesso!');
       }
-
-      console.log('✅ Convênios salvos com sucesso!');
     }
 
     return { success: true };
@@ -349,11 +401,8 @@ export async function saveConvenios(professionalId, convenios) {
   }
 }
 
-export async function saveEspecialidades(
-  professionalId,
-  especialidades,
-  intervaloConsultas
-) {
+// ==================== SALVAR ESPECIALIDADES ====================
+export async function saveEspecialidades(professionalId, especialidades, intervaloConsultas) {
   try {
     if (!professionalId) {
       throw new Error('ID do profissional não fornecido');
@@ -361,7 +410,6 @@ export async function saveEspecialidades(
 
     console.log('💾 Salvando especialidades para professionalId:', professionalId);
     console.log('📋 Especialidades:', especialidades);
-    console.log('⏱️ Intervalo consultas:', intervaloConsultas);
 
     // 1. Deletar especialidades existentes
     const { error: deleteError } = await supabase
@@ -376,24 +424,36 @@ export async function saveEspecialidades(
 
     // 2. Inserir novas especialidades (se houver)
     if (especialidades && especialidades.length > 0) {
-      const especialidadesData = especialidades.map((especialidade) => ({
-        professional_id: professionalId,
-        nome: especialidade,
-      }));
+      // Filtrar especialidades vazias
+      const especialidadesValidas = especialidades.filter(
+        (e) => e.nome && e.nome.trim() !== ''
+      );
 
-      const { error: insertError } = await supabase
-        .from('professional_especialidades')
-        .insert(especialidadesData);
+      if (especialidadesValidas.length > 0) {
+        const especialidadesData = especialidadesValidas.map((esp) => ({
+          professional_id: professionalId,
+          nome: esp.nome,
+          duracao: esp.duracao || '50',
+          forma_atendimento: esp.formaAtendimento || 'Presencial',
+          convenios: esp.convenios || [],
+        }));
 
-      if (insertError) {
-        console.error('❌ Erro ao inserir especialidades:', insertError);
-        throw insertError;
+        console.log('📦 Dados de especialidades a inserir:', especialidadesData);
+
+        const { error: insertError } = await supabase
+          .from('professional_especialidades')
+          .insert(especialidadesData);
+
+        if (insertError) {
+          console.error('❌ Erro ao inserir especialidades:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ Especialidades salvas com sucesso!');
       }
-
-      console.log('✅ Especialidades salvas com sucesso!');
     }
 
-    // 3. Atualizar intervalo de consultas no registro do profissional (se fornecido)
+    // 3. Atualizar intervalo de consultas no registro do profissional
     if (intervaloConsultas) {
       const { error: updateError } = await supabase
         .from('professionals')
@@ -402,10 +462,9 @@ export async function saveEspecialidades(
 
       if (updateError) {
         console.error('❌ Erro ao atualizar intervalo de consultas:', updateError);
-        throw updateError;
+      } else {
+        console.log('✅ Intervalo de consultas atualizado!');
       }
-
-      console.log('✅ Intervalo de consultas atualizado!');
     }
 
     return { success: true };
@@ -415,6 +474,7 @@ export async function saveEspecialidades(
   }
 }
 
+// ==================== SALVAR LOCAIS ====================
 export async function saveLocais(professionalId, locais) {
   try {
     if (!professionalId) {
@@ -437,26 +497,33 @@ export async function saveLocais(professionalId, locais) {
 
     // 2. Inserir novos locais (se houver)
     if (locais && locais.length > 0) {
-      const locaisData = locais.map((local) => ({
-        professional_id: professionalId,
-        nome: local.nome || '',
-        endereco: local.endereco || '',
-        cep: local.cep || '',
-        cidade: local.cidade || '',
-        especialidades: local.especialidades || [],
-        horarios: local.horarios || [],
-      }));
+      // Filtrar locais vazios
+      const locaisValidos = locais.filter((l) => l.nome && l.nome.trim() !== '');
 
-      const { error: insertError } = await supabase
-        .from('professional_locais')
-        .insert(locaisData);
+      if (locaisValidos.length > 0) {
+        const locaisData = locaisValidos.map((local) => ({
+          professional_id: professionalId,
+          nome: local.nome,
+          endereco: local.endereco || '',
+          cep: local.cep || '',
+          cidade: local.cidade || '',
+          especialidades: local.especialidades || [],
+          horarios: local.horarios || [],
+        }));
 
-      if (insertError) {
-        console.error('❌ Erro ao inserir locais:', insertError);
-        throw insertError;
+        console.log('📦 Dados de locais a inserir:', locaisData);
+
+        const { error: insertError } = await supabase
+          .from('professional_locais')
+          .insert(locaisData);
+
+        if (insertError) {
+          console.error('❌ Erro ao inserir locais:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ Locais salvos com sucesso!');
       }
-
-      console.log('✅ Locais salvos com sucesso!');
     }
 
     return { success: true };
@@ -466,6 +533,75 @@ export async function saveLocais(professionalId, locais) {
   }
 }
 
+// ==================== SALVAR PREÇOS ====================
+export async function savePrecos(professionalId, configuracoes) {
+  try {
+    if (!professionalId) {
+      throw new Error('ID do profissional não fornecido');
+    }
+
+    console.log('💾 Salvando preços para professionalId:', professionalId);
+    console.log('📋 Configurações:', configuracoes);
+
+    // 1. Deletar preços existentes
+    const { error: deleteError } = await supabase
+      .from('professional_precos')
+      .delete()
+      .eq('professional_id', professionalId);
+
+    if (deleteError) {
+      console.error('❌ Erro ao deletar preços antigos:', deleteError);
+      throw deleteError;
+    }
+
+    // 2. Inserir novos preços (se houver)
+    if (configuracoes && configuracoes.length > 0) {
+      // Filtrar configurações vazias
+      const configuracoesValidas = configuracoes.filter(
+        (c) => c.local && c.especialidade && c.valor
+      );
+
+      if (configuracoesValidas.length > 0) {
+        const precosData = configuracoesValidas.map((config) => ({
+          professional_id: professionalId,
+          local: config.local,
+          especialidade: config.especialidade,
+          valor: config.valor,
+          formas_pagamento: config.formasPagamento || [],
+          cobranca_no_agendamento: config.cobrancaNoAgendamento || false,
+          percentual_adiantado: config.percentualAdiantado || '50',
+          dados_bancarios: config.dadosBancarios || {
+            banco: '',
+            agencia: '',
+            conta: '',
+            tipoConta: 'Corrente',
+            chavePix: '',
+          },
+        }));
+
+        console.log('📦 Dados de preços a inserir:', precosData);
+
+        const { error: insertError } = await supabase
+          .from('professional_precos')
+          .insert(precosData);
+
+        if (insertError) {
+          console.error('❌ Erro ao inserir preços:', insertError);
+          throw insertError;
+        }
+
+        console.log('✅ Preços salvos com sucesso!');
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('💥 Erro ao salvar preços:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+// ==================== SALVAR POLÍTICAS ====================
 export async function savePoliticas(professionalId, politicas) {
   try {
     if (!professionalId) {
@@ -498,6 +634,8 @@ export async function savePoliticas(professionalId, politicas) {
       faltas_percentual_cobranca: politicas.faltas?.percentualCobranca || '100',
       faltas_tolerancia_atraso: politicas.faltas?.toleranciaAtraso || '15',
     };
+
+    console.log('📦 Dados de políticas:', politicasData);
 
     if (existingPoliticas) {
       // ATUALIZAR
