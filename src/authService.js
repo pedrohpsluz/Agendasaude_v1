@@ -187,3 +187,39 @@ export function onAuthStateChange(callback) {
     callback(event, session);
   });
 }
+
+// ==================== SIGN IN WITH GOOGLE ====================
+export async function signInWithGoogle() {
+  try {
+    console.log('🔐 Iniciando login com Google...');
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
+    });
+
+    if (error) {
+      console.error('❌ Erro no login com Google:', error);
+      throw error;
+    }
+
+    console.log('✅ Redirecionando para Google...', data);
+
+    return {
+      success: true,
+      data: data,
+    };
+  } catch (error) {
+    console.error('💥 Erro no signInWithGoogle:', error);
+    return {
+      success: false,
+      error: error.message || 'Erro ao fazer login com Google',
+    };
+  }
+}

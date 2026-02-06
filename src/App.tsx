@@ -24,7 +24,7 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { supabase } from './supabaseClient';
-import { signUp, signIn, signOut } from './authService';
+import { signUp, signIn, signOut, signInWithGoogle } from './authService';
 import {
   loadProfessionalData,
   saveProfessionalData,
@@ -133,9 +133,36 @@ export default function AgendaSaudeApp() {
 
       if (event === 'SIGNED_IN' && session) {
         console.log('✅ Usuário logado:', session.user.email);
+
+        // Verificar se o usuário existe na tabela users (importante para login com Google)
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', session.user.id)
+          .maybeSingle();
+
+        if (!existingUser) {
+          // Criar usuário na tabela users (login com Google)
+          console.log('📝 Criando usuário na tabela users (Google login)...');
+          const { error: insertError } = await supabase.from('users').insert([{
+            id: session.user.id,
+            nome: session.user.user_metadata?.full_name || session.user.user_metadata?.name || '',
+            email: session.user.email || '',
+            telefone: session.user.user_metadata?.telefone || '',
+            cpf_cnpj: session.user.user_metadata?.cpf_cnpj || '',
+          }]);
+
+          if (insertError) {
+            console.error('⚠️ Erro ao criar usuário:', insertError);
+          } else {
+            console.log('✅ Usuário criado na tabela users');
+          }
+        }
+
         setUserLoggedIn(true);
         setCurrentUserId(session.user.id);
         setCurrentPage('profile');
+        localStorage.setItem('profileTab', 'pessoais');
       } else if (event === 'SIGNED_OUT') {
         console.log('👋 Usuário deslogado');
         setUserLoggedIn(false);
@@ -297,10 +324,13 @@ function LandingPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }: Page
     }
   };
 
-  const handleGoogleSignup = () => {
-    setUserLoggedIn(true);
-    setCurrentPage('profile');
-    localStorage.setItem('profileTab', 'pessoais');
+  const handleGoogleSignup = async () => {
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      alert('❌ Erro ao iniciar login com Google: ' + result.error);
+    }
+    // O redirecionamento é feito automaticamente pelo Supabase OAuth
+    // O listener de auth state vai capturar o login quando o usuário voltar
   };
 
   const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -802,18 +832,19 @@ function LoginPage({ setCurrentPage, setUserLoggedIn, setCurrentUserId }: PagePr
         setUserLoggedIn(true);
         setCurrentUserId(result.userId ?? null);
         setCurrentPage('profile');
-        localStorage.setItem('profileTab', 'clientes');
+        localStorage.setItem('profileTab', 'pessoais');
       } else {
         alert('❌ Erro no cadastro: ' + result.error);
       }
     }
   };
 
-  const handleGoogleLogin = () => {
-    // Simula login/cadastro com Google e vai para aba clientes
-    setUserLoggedIn(true);
-    setCurrentPage('profile');
-    localStorage.setItem('profileTab', 'clientes');
+  const handleGoogleLogin = async () => {
+    const result = await signInWithGoogle();
+    if (!result.success) {
+      alert('❌ Erro ao iniciar login com Google: ' + result.error);
+    }
+    // O redirecionamento é feito automaticamente pelo Supabase OAuth
   };
 
   return (
