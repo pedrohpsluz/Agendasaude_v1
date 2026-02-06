@@ -289,7 +289,40 @@ CREATE POLICY "Deletar próprias políticas" ON professional_politicas
   FOR DELETE USING (is_owner_of_professional(professional_id));
 
 -- ==========================================
--- PASSO 5: TRIGGERS PARA ATUALIZAR updated_at
+-- PASSO 5: TRIGGER PARA CRIAR USUÁRIO AUTOMATICAMENTE
+-- ==========================================
+-- Este trigger cria automaticamente um registro na tabela public.users
+-- quando um novo usuário é criado no auth.users (durante signup)
+
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.users (id, nome, email, telefone, cpf_cnpj)
+  VALUES (
+    NEW.id,
+    COALESCE(NEW.raw_user_meta_data->>'nome', ''),
+    COALESCE(NEW.email, ''),
+    COALESCE(NEW.raw_user_meta_data->>'telefone', ''),
+    COALESCE(NEW.raw_user_meta_data->>'cpf_cnpj', '')
+  )
+  ON CONFLICT (id) DO UPDATE SET
+    nome = COALESCE(EXCLUDED.nome, users.nome),
+    email = COALESCE(EXCLUDED.email, users.email),
+    telefone = COALESCE(EXCLUDED.telefone, users.telefone),
+    cpf_cnpj = COALESCE(EXCLUDED.cpf_cnpj, users.cpf_cnpj),
+    updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Criar o trigger no schema auth
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ==========================================
+-- PASSO 6: TRIGGERS PARA ATUALIZAR updated_at
 -- ==========================================
 
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -313,7 +346,7 @@ CREATE TRIGGER update_politicas_updated_at BEFORE UPDATE ON professional_politic
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ==========================================
--- PASSO 6: VIEW PARA DADOS COMPLETOS (OPCIONAL)
+-- PASSO 7: VIEW PARA DADOS COMPLETOS (OPCIONAL)
 -- ==========================================
 
 DROP VIEW IF EXISTS vw_professional_complete;

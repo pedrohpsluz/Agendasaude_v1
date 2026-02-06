@@ -25,24 +25,29 @@ export async function signUp({ nome, email, senha, cpfCnpj, telefone }) {
 
     console.log('✅ Usuário criado no Auth:', authData);
 
-    // 2. Inserir dados na tabela users
+    // 2. Inserir dados na tabela users usando upsert para evitar conflitos
     if (authData.user) {
-      const { error: insertError } = await supabase.from('users').insert([
+      // Usar upsert para caso já exista um registro (ex: trigger automático)
+      const { error: insertError } = await supabase.from('users').upsert(
         {
           id: authData.user.id,
           nome: nome,
           email: email,
           telefone: telefone,
           cpf_cnpj: cpfCnpj,
-          created_at: new Date().toISOString(),
         },
-      ]);
+        {
+          onConflict: 'id',
+          ignoreDuplicates: false, // Atualizar se já existir
+        }
+      );
 
       if (insertError) {
-        console.error('⚠️ Erro ao inserir na tabela users:', insertError);
+        console.error('⚠️ Erro ao inserir/atualizar na tabela users:', insertError);
         // Não vamos fazer throw aqui pois o usuário já foi criado no Auth
+        // O usuário poderá atualizar seus dados depois na página de perfil
       } else {
-        console.log('✅ Dados inseridos na tabela users');
+        console.log('✅ Dados inseridos/atualizados na tabela users');
       }
     }
 
@@ -88,19 +93,22 @@ export async function signIn({ email, senha }) {
         .maybeSingle(); // Usar maybeSingle() ao invés de single()
 
       if (!userData) {
-        // Usuário não existe na tabela users, vamos criar
+        // Usuário não existe na tabela users, vamos criar usando upsert
         console.log('⚠️ Usuário não encontrado na tabela users, criando...');
 
-        const { error: insertError } = await supabase.from('users').insert([
+        const { error: insertError } = await supabase.from('users').upsert(
           {
             id: data.user.id,
             nome: data.user.user_metadata?.nome || '',
             email: data.user.email,
             telefone: data.user.user_metadata?.telefone || '',
             cpf_cnpj: data.user.user_metadata?.cpf_cnpj || '',
-            created_at: new Date().toISOString(),
           },
-        ]);
+          {
+            onConflict: 'id',
+            ignoreDuplicates: false,
+          }
+        );
 
         if (insertError) {
           console.error('❌ Erro ao criar usuário na tabela users:', insertError);
