@@ -136,6 +136,84 @@ const CONVENIOS_DISPONIVEIS: Record<string, string[]> = {
   'Omint': ['Omint Plus', 'Omint Class', 'Omint Gold'],
 };
 
+// Lista de especialidades por área de saúde
+const ESPECIALIDADES_POR_AREA: Record<string, string[]> = {
+  'Psicólogo': [
+    'Psicologia Clínica',
+    'Psicologia Hospitalar',
+    'Neuropsicologia',
+    'Psicologia Infantil',
+    'Psicologia do Esporte',
+    'Psicologia Organizacional',
+    'Psicologia Jurídica',
+    'Terapia Cognitivo-Comportamental (TCC)',
+    'Psicanálise',
+    'Terapia de Casal e Família',
+    'Psicologia do Trânsito',
+    'Avaliação Psicológica',
+  ],
+  'Médico': [
+    'Clínico Geral',
+    'Cardiologia',
+    'Dermatologia',
+    'Endocrinologia',
+    'Gastroenterologia',
+    'Geriatria',
+    'Ginecologia',
+    'Neurologia',
+    'Oftalmologia',
+    'Ortopedia',
+    'Otorrinolaringologia',
+    'Pediatria',
+    'Pneumologia',
+    'Reumatologia',
+    'Urologia',
+    'Medicina do Trabalho',
+    'Medicina Esportiva',
+    'Nutrologia',
+  ],
+  'Fisioterapeuta': [
+    'Fisioterapia Ortopédica',
+    'Fisioterapia Neurológica',
+    'Fisioterapia Respiratória',
+    'Fisioterapia Esportiva',
+    'Fisioterapia Geriátrica',
+    'Fisioterapia Pediátrica',
+    'Fisioterapia Dermatofuncional',
+    'Pilates Clínico',
+    'RPG (Reeducação Postural Global)',
+    'Acupuntura',
+    'Quiropraxia',
+    'Osteopatia',
+  ],
+  'Dentista': [
+    'Clínico Geral',
+    'Ortodontia',
+    'Implantodontia',
+    'Endodontia',
+    'Periodontia',
+    'Odontopediatria',
+    'Prótese Dentária',
+    'Cirurgia Bucomaxilofacial',
+    'Estética Dental',
+    'Harmonização Orofacial',
+    'Dentística',
+    'Radiologia Odontológica',
+  ],
+  'Psiquiatra': [
+    'Psiquiatria Geral',
+    'Psiquiatria Infantil',
+    'Psiquiatria Geriátrica',
+    'Psiquiatria Forense',
+    'Dependência Química',
+    'Transtornos de Ansiedade',
+    'Transtornos do Humor',
+    'Transtornos Alimentares',
+    'TDAH',
+    'Transtornos de Personalidade',
+  ],
+};
+
 export default function AgendaSaudeApp() {
   const [currentPage, setCurrentPage] = useState('landing');
   const [, setUserLoggedIn] = useState(false);
@@ -1897,8 +1975,7 @@ function ProfilePage({
                         <label className="block text-sm font-medium mb-2">
                           Nome da Especialidade*
                         </label>
-                        <input
-                          type="text"
+                        <select
                           value={esp.nome}
                           onChange={(e) => {
                             const novos = [...areas.especialidades];
@@ -1906,8 +1983,14 @@ function ProfilePage({
                             setAreas({ ...areas, especialidades: novos });
                           }}
                           className="w-full px-4 py-2 border rounded-lg"
-                          placeholder="Ex: Psicologia Clínica"
-                        />
+                        >
+                          <option value="">Selecione a especialidade</option>
+                          {(ESPECIALIDADES_POR_AREA[pessoais.areaSaude] || []).map((especialidade) => (
+                            <option key={especialidade} value={especialidade}>
+                              {especialidade}
+                            </option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-sm font-medium mb-2">
