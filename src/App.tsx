@@ -115,6 +115,27 @@ interface ProfilePageProps {
   setCurrentProfessionalId: (id: string | null) => void;
 }
 
+// Lista de convênios e seus planos disponíveis
+const CONVENIOS_DISPONIVEIS: Record<string, string[]> = {
+  'Particular': [],
+  'Unimed': ['Unimed Nacional', 'Unimed Seguros', 'Unimed Fácil', 'Unimed Universitário', 'Unimed Básico'],
+  'Bradesco Saúde': ['Top Nacional', 'Efetivo', 'Preferencial', 'Nacional Flex', 'Compulsório'],
+  'Amil': ['Amil One Health', 'Amil 400', 'Amil 500', 'Amil 600', 'Amil 700', 'Amil Dental'],
+  'SulAmérica': ['Especial 100', 'Executivo', 'Clássico', 'Prestige', 'Básico'],
+  'NotreDame Intermédica': ['Smart 200', 'Smart 500', 'Advance', 'Premium', 'Ideal'],
+  'Hapvida': ['Mix', 'Pleno', 'Max', 'Nacional', 'Sênior'],
+  'Porto Seguro Saúde': ['Bronze', 'Prata', 'Ouro', 'Diamante', 'Empresarial'],
+  'Golden Cross': ['Essencial', 'Especial', 'Superior', 'Sênior'],
+  'Prevent Senior': ['Prev Senior', 'Bem Estar', 'Conforto', 'Premium'],
+  'São Cristóvão': ['Leve', 'Ideal', 'Total', 'Especial'],
+  'Care Plus': ['Master', 'Executivo', 'Soho', 'Personal'],
+  'Cassi': ['Plano Associados', 'Plano Família', 'Cassi Essencial'],
+  'Caixa Saúde': ['Básico', 'Especial', 'Executivo'],
+  'Allianz Saúde': ['Blue', 'Classic', 'Premium', 'Black'],
+  'Mediservice': ['Básico', 'Standard', 'Especial', 'Executivo'],
+  'Omint': ['Omint Plus', 'Omint Class', 'Omint Gold'],
+};
+
 export default function AgendaSaudeApp() {
   const [currentPage, setCurrentPage] = useState('landing');
   const [, setUserLoggedIn] = useState(false);
@@ -1721,7 +1742,7 @@ function ProfilePage({
                           ...pessoais,
                           convenios: [
                             ...pessoais.convenios,
-                            { nome: '', planos: [''] },
+                            { nome: '', planos: [] },
                           ],
                         })
                       }
@@ -1739,14 +1760,17 @@ function ProfilePage({
                           onChange={(e) => {
                             const novos = [...pessoais.convenios];
                             novos[idx].nome = e.target.value;
+                            novos[idx].planos = []; // Limpar planos ao trocar convênio
                             setPessoais({ ...pessoais, convenios: novos });
                           }}
                           className="flex-1 px-4 py-2 border rounded-lg"
                         >
-                          <option value="">Selecione</option>
-                          <option value="Unimed">Unimed</option>
-                          <option value="Bradesco Saúde">Bradesco Saúde</option>
-                          <option value="Particular">Particular</option>
+                          <option value="">Selecione o convênio</option>
+                          {Object.keys(CONVENIOS_DISPONIVEIS).map((convenio) => (
+                            <option key={convenio} value={convenio}>
+                              {convenio}
+                            </option>
+                          ))}
                         </select>
                         <button
                           onClick={() =>
@@ -1762,44 +1786,44 @@ function ProfilePage({
                           <X className="w-5 h-5" />
                         </button>
                       </div>
-                      {conv.planos.map((plano, pIdx) => (
-                        <div key={pIdx} className="flex gap-2 mb-2">
-                          <input
-                            type="text"
-                            value={plano}
-                            onChange={(e) => {
-                              const novos = [...pessoais.convenios];
-                              novos[idx].planos[pIdx] = e.target.value;
-                              setPessoais({ ...pessoais, convenios: novos });
-                            }}
-                            className="flex-1 px-4 py-2 border rounded-lg"
-                            placeholder="Nome do plano"
-                          />
-                          <button
-                            onClick={() => {
-                              const novos = [...pessoais.convenios];
-                              novos[idx].planos = novos[idx].planos.filter(
-                                (_, i) => i !== pIdx
-                              );
-                              setPessoais({ ...pessoais, convenios: novos });
-                            }}
-                            className="text-red-600"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
+                      {conv.nome && CONVENIOS_DISPONIVEIS[conv.nome]?.length > 0 && (
+                        <div className="mt-3">
+                          <label className="text-sm text-gray-600 mb-2 block">
+                            Planos aceitos:
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            {CONVENIOS_DISPONIVEIS[conv.nome].map((plano) => (
+                              <label
+                                key={plano}
+                                className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={conv.planos.includes(plano)}
+                                  onChange={(e) => {
+                                    const novos = [...pessoais.convenios];
+                                    if (e.target.checked) {
+                                      novos[idx].planos = [...novos[idx].planos, plano];
+                                    } else {
+                                      novos[idx].planos = novos[idx].planos.filter(
+                                        (p) => p !== plano
+                                      );
+                                    }
+                                    setPessoais({ ...pessoais, convenios: novos });
+                                  }}
+                                  className="w-4 h-4 text-indigo-600 rounded"
+                                />
+                                {plano}
+                              </label>
+                            ))}
+                          </div>
                         </div>
-                      ))}
-                      <button
-                        onClick={() => {
-                          const novos = [...pessoais.convenios];
-                          novos[idx].planos.push('');
-                          setPessoais({ ...pessoais, convenios: novos });
-                        }}
-                        className="text-sm text-indigo-600 flex items-center gap-1"
-                      >
-                        <Plus className="w-3 h-3" />
-                        Adicionar Plano
-                      </button>
+                      )}
+                      {conv.nome === 'Particular' && (
+                        <p className="text-sm text-gray-500 mt-2 italic">
+                          Atendimento particular não possui planos específicos.
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
