@@ -48,6 +48,13 @@ interface Especialidade {
   convenios: string[];
 }
 
+interface HorarioLocal {
+  dia: string;
+  ativo: boolean;
+  inicio: string;
+  fim: string;
+}
+
 interface Local {
   id: number;
   nome: string;
@@ -55,8 +62,19 @@ interface Local {
   cidade: string;
   cep: string;
   especialidades: string[];
-  horarios: string[];
+  horarios: HorarioLocal[];
 }
+
+// Dias da semana para seleção de horários
+const DIAS_SEMANA = [
+  { key: 'seg', nome: 'Segunda-feira' },
+  { key: 'ter', nome: 'Terça-feira' },
+  { key: 'qua', nome: 'Quarta-feira' },
+  { key: 'qui', nome: 'Quinta-feira' },
+  { key: 'sex', nome: 'Sexta-feira' },
+  { key: 'sab', nome: 'Sábado' },
+  { key: 'dom', nome: 'Domingo' },
+];
 
 interface DadosBancarios {
   banco: string;
@@ -2066,7 +2084,12 @@ function ProfilePage({
                           cidade: '',
                           cep: '',
                           especialidades: [],
-                          horarios: [],
+                          horarios: DIAS_SEMANA.map((d) => ({
+                            dia: d.key,
+                            ativo: false,
+                            inicio: '08:00',
+                            fim: '18:00',
+                          })),
                         },
                       ])
                     }
@@ -2160,6 +2183,87 @@ function ProfilePage({
                           className="w-full px-4 py-2 border rounded-lg"
                           placeholder="Campinas"
                         />
+                      </div>
+                    </div>
+
+                    {/* Seção de Dias e Horários */}
+                    <div className="mt-6 border-t pt-4">
+                      <label className="block text-sm font-medium mb-3">
+                        Dias e Horários de Atendimento
+                      </label>
+                      <div className="space-y-3">
+                        {DIAS_SEMANA.map((dia) => {
+                          const horario = local.horarios?.find(
+                            (h) => h.dia === dia.key
+                          ) || { dia: dia.key, ativo: false, inicio: '08:00', fim: '18:00' };
+                          return (
+                            <div
+                              key={dia.key}
+                              className="flex items-center gap-4 p-3 bg-white rounded-lg border"
+                            >
+                              <label className="flex items-center gap-2 min-w-[140px] cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={horario.ativo}
+                                  onChange={(e) => {
+                                    const novos = [...locais];
+                                    const horarioIdx = novos[localIdx].horarios.findIndex(
+                                      (h) => h.dia === dia.key
+                                    );
+                                    if (horarioIdx >= 0) {
+                                      novos[localIdx].horarios[horarioIdx].ativo = e.target.checked;
+                                    } else {
+                                      novos[localIdx].horarios.push({
+                                        dia: dia.key,
+                                        ativo: e.target.checked,
+                                        inicio: '08:00',
+                                        fim: '18:00',
+                                      });
+                                    }
+                                    setLocais(novos);
+                                  }}
+                                  className="w-4 h-4 text-indigo-600 rounded"
+                                />
+                                <span className="text-sm font-medium">{dia.nome}</span>
+                              </label>
+                              {horario.ativo && (
+                                <div className="flex items-center gap-2 flex-1">
+                                  <input
+                                    type="time"
+                                    value={horario.inicio}
+                                    onChange={(e) => {
+                                      const novos = [...locais];
+                                      const horarioIdx = novos[localIdx].horarios.findIndex(
+                                        (h) => h.dia === dia.key
+                                      );
+                                      if (horarioIdx >= 0) {
+                                        novos[localIdx].horarios[horarioIdx].inicio = e.target.value;
+                                      }
+                                      setLocais(novos);
+                                    }}
+                                    className="px-3 py-1 border rounded-lg text-sm"
+                                  />
+                                  <span className="text-gray-500">até</span>
+                                  <input
+                                    type="time"
+                                    value={horario.fim}
+                                    onChange={(e) => {
+                                      const novos = [...locais];
+                                      const horarioIdx = novos[localIdx].horarios.findIndex(
+                                        (h) => h.dia === dia.key
+                                      );
+                                      if (horarioIdx >= 0) {
+                                        novos[localIdx].horarios[horarioIdx].fim = e.target.value;
+                                      }
+                                      setLocais(novos);
+                                    }}
+                                    className="px-3 py-1 border rounded-lg text-sm"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>
