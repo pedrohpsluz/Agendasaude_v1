@@ -76,6 +76,29 @@ const DIAS_SEMANA = [
   { key: 'dom', nome: 'Domingo' },
 ];
 
+// Interface para eventos da agenda
+interface EventoAgenda {
+  id: number;
+  tipo: 'consulta' | 'ferias' | 'folga' | 'compromisso' | 'bloqueio';
+  titulo: string;
+  descricao: string;
+  dataInicio: string;
+  dataFim: string;
+  horaInicio: string;
+  horaFim: string;
+  diaInteiro: boolean;
+  cor: string;
+}
+
+// Tipos de eventos disponíveis
+const TIPOS_EVENTO = [
+  { id: 'consulta', nome: 'Consulta', cor: '#4F46E5' },
+  { id: 'ferias', nome: 'Férias', cor: '#10B981' },
+  { id: 'folga', nome: 'Folga', cor: '#F59E0B' },
+  { id: 'compromisso', nome: 'Compromisso Pessoal', cor: '#EC4899' },
+  { id: 'bloqueio', nome: 'Bloqueio de Horário', cor: '#6B7280' },
+];
+
 interface DadosBancarios {
   banco: string;
   agencia: string;
@@ -1279,6 +1302,13 @@ function ProfilePage({
 
   const [locais, setLocais] = useState<Local[]>([]);
 
+  // Estado da Agenda
+  const [eventos, setEventos] = useState<EventoAgenda[]>([]);
+  const [visualizacaoAgenda, setVisualizacaoAgenda] = useState<'semana' | 'mes'>('semana');
+  const [dataAtualAgenda, setDataAtualAgenda] = useState(new Date());
+  const [modalEvento, setModalEvento] = useState(false);
+  const [eventoEditando, setEventoEditando] = useState<EventoAgenda | null>(null);
+
   const [precos, setPrecos] = useState<Precos>({
     configuracoes: [],
   });
@@ -1480,6 +1510,7 @@ function ProfilePage({
     { id: 'pessoais', label: 'Informações Pessoais', icon: User },
     { id: 'areas', label: 'Especialidade e Tempo de Consulta', icon: Clock },
     { id: 'locais', label: 'Locais e Horários', icon: MapPin },
+    { id: 'agenda', label: 'Agenda', icon: Calendar },
     { id: 'precos', label: 'Preços e Pagamentos', icon: DollarSign },
     {
       id: 'politicas',
@@ -2268,6 +2299,508 @@ function ProfilePage({
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {activeTab === 'agenda' && (
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold">Agenda</h2>
+                  <button
+                    onClick={() => {
+                      setEventoEditando({
+                        id: Date.now(),
+                        tipo: 'compromisso',
+                        titulo: '',
+                        descricao: '',
+                        dataInicio: new Date().toISOString().split('T')[0],
+                        dataFim: new Date().toISOString().split('T')[0],
+                        horaInicio: '09:00',
+                        horaFim: '10:00',
+                        diaInteiro: false,
+                        cor: '#EC4899',
+                      });
+                      setModalEvento(true);
+                    }}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Novo Evento
+                  </button>
+                </div>
+
+                {/* Controles de navegação */}
+                <div className="flex items-center justify-between mb-6 bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        const novaData = new Date(dataAtualAgenda);
+                        if (visualizacaoAgenda === 'semana') {
+                          novaData.setDate(novaData.getDate() - 7);
+                        } else {
+                          novaData.setMonth(novaData.getMonth() - 1);
+                        }
+                        setDataAtualAgenda(novaData);
+                      }}
+                      className="px-3 py-1 border rounded-lg hover:bg-gray-100"
+                    >
+                      ← Anterior
+                    </button>
+                    <button
+                      onClick={() => setDataAtualAgenda(new Date())}
+                      className="px-3 py-1 border rounded-lg hover:bg-gray-100"
+                    >
+                      Hoje
+                    </button>
+                    <button
+                      onClick={() => {
+                        const novaData = new Date(dataAtualAgenda);
+                        if (visualizacaoAgenda === 'semana') {
+                          novaData.setDate(novaData.getDate() + 7);
+                        } else {
+                          novaData.setMonth(novaData.getMonth() + 1);
+                        }
+                        setDataAtualAgenda(novaData);
+                      }}
+                      className="px-3 py-1 border rounded-lg hover:bg-gray-100"
+                    >
+                      Próximo →
+                    </button>
+                  </div>
+                  <span className="font-semibold text-lg">
+                    {dataAtualAgenda.toLocaleDateString('pt-BR', {
+                      month: 'long',
+                      year: 'numeric',
+                    })}
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setVisualizacaoAgenda('semana')}
+                      className={`px-4 py-2 rounded-lg ${
+                        visualizacaoAgenda === 'semana'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300'
+                      }`}
+                    >
+                      Semana
+                    </button>
+                    <button
+                      onClick={() => setVisualizacaoAgenda('mes')}
+                      className={`px-4 py-2 rounded-lg ${
+                        visualizacaoAgenda === 'mes'
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-200 hover:bg-gray-300'
+                      }`}
+                    >
+                      Mês
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visualização Semanal */}
+                {visualizacaoAgenda === 'semana' && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-8 bg-gray-100">
+                      <div className="p-3 border-r text-sm font-medium text-gray-500">
+                        Horário
+                      </div>
+                      {(() => {
+                        const inicio = new Date(dataAtualAgenda);
+                        inicio.setDate(inicio.getDate() - inicio.getDay());
+                        return Array.from({ length: 7 }, (_, i) => {
+                          const dia = new Date(inicio);
+                          dia.setDate(dia.getDate() + i);
+                          const isHoje = dia.toDateString() === new Date().toDateString();
+                          return (
+                            <div
+                              key={i}
+                              className={`p-3 text-center border-r last:border-r-0 ${
+                                isHoje ? 'bg-indigo-100' : ''
+                              }`}
+                            >
+                              <div className="text-xs text-gray-500">
+                                {dia.toLocaleDateString('pt-BR', { weekday: 'short' })}
+                              </div>
+                              <div className={`text-lg font-semibold ${isHoje ? 'text-indigo-600' : ''}`}>
+                                {dia.getDate()}
+                              </div>
+                            </div>
+                          );
+                        });
+                      })()}
+                    </div>
+                    <div className="max-h-96 overflow-y-auto">
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const hora = 7 + i;
+                        return (
+                          <div key={hora} className="grid grid-cols-8 border-t">
+                            <div className="p-2 border-r text-sm text-gray-500 bg-gray-50">
+                              {hora.toString().padStart(2, '0')}:00
+                            </div>
+                            {Array.from({ length: 7 }, (_, j) => {
+                              const inicio = new Date(dataAtualAgenda);
+                              inicio.setDate(inicio.getDate() - inicio.getDay() + j);
+                              const dataStr = inicio.toISOString().split('T')[0];
+                              const eventosHora = eventos.filter(
+                                (e) =>
+                                  e.dataInicio === dataStr &&
+                                  parseInt(e.horaInicio.split(':')[0]) === hora
+                              );
+                              return (
+                                <div
+                                  key={j}
+                                  className="p-1 border-r last:border-r-0 min-h-[50px] hover:bg-gray-50 cursor-pointer"
+                                  onClick={() => {
+                                    setEventoEditando({
+                                      id: Date.now(),
+                                      tipo: 'compromisso',
+                                      titulo: '',
+                                      descricao: '',
+                                      dataInicio: dataStr,
+                                      dataFim: dataStr,
+                                      horaInicio: `${hora.toString().padStart(2, '0')}:00`,
+                                      horaFim: `${(hora + 1).toString().padStart(2, '0')}:00`,
+                                      diaInteiro: false,
+                                      cor: '#EC4899',
+                                    });
+                                    setModalEvento(true);
+                                  }}
+                                >
+                                  {eventosHora.map((evento) => (
+                                    <div
+                                      key={evento.id}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setEventoEditando(evento);
+                                        setModalEvento(true);
+                                      }}
+                                      className="text-xs p-1 rounded text-white truncate cursor-pointer"
+                                      style={{ backgroundColor: evento.cor }}
+                                    >
+                                      {evento.titulo || 'Sem título'}
+                                    </div>
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Visualização Mensal */}
+                {visualizacaoAgenda === 'mes' && (
+                  <div className="border rounded-lg overflow-hidden">
+                    <div className="grid grid-cols-7 bg-gray-100">
+                      {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((dia) => (
+                        <div key={dia} className="p-3 text-center font-medium text-gray-600">
+                          {dia}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-7">
+                      {(() => {
+                        const primeiroDia = new Date(
+                          dataAtualAgenda.getFullYear(),
+                          dataAtualAgenda.getMonth(),
+                          1
+                        );
+                        const ultimoDia = new Date(
+                          dataAtualAgenda.getFullYear(),
+                          dataAtualAgenda.getMonth() + 1,
+                          0
+                        );
+                        const diasAntes = primeiroDia.getDay();
+                        const totalDias = ultimoDia.getDate();
+                        const dias = [];
+
+                        for (let i = 0; i < diasAntes; i++) {
+                          dias.push(<div key={`antes-${i}`} className="p-2 border-t bg-gray-50 min-h-[80px]" />);
+                        }
+
+                        for (let dia = 1; dia <= totalDias; dia++) {
+                          const data = new Date(dataAtualAgenda.getFullYear(), dataAtualAgenda.getMonth(), dia);
+                          const dataStr = data.toISOString().split('T')[0];
+                          const eventosdia = eventos.filter((e) => e.dataInicio === dataStr);
+                          const isHoje = data.toDateString() === new Date().toDateString();
+
+                          dias.push(
+                            <div
+                              key={dia}
+                              className={`p-2 border-t min-h-[80px] cursor-pointer hover:bg-gray-50 ${
+                                isHoje ? 'bg-indigo-50' : ''
+                              }`}
+                              onClick={() => {
+                                setEventoEditando({
+                                  id: Date.now(),
+                                  tipo: 'compromisso',
+                                  titulo: '',
+                                  descricao: '',
+                                  dataInicio: dataStr,
+                                  dataFim: dataStr,
+                                  horaInicio: '09:00',
+                                  horaFim: '10:00',
+                                  diaInteiro: false,
+                                  cor: '#EC4899',
+                                });
+                                setModalEvento(true);
+                              }}
+                            >
+                              <div className={`font-semibold mb-1 ${isHoje ? 'text-indigo-600' : ''}`}>
+                                {dia}
+                              </div>
+                              {eventosdia.slice(0, 3).map((evento) => (
+                                <div
+                                  key={evento.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEventoEditando(evento);
+                                    setModalEvento(true);
+                                  }}
+                                  className="text-xs p-1 rounded text-white truncate mb-1 cursor-pointer"
+                                  style={{ backgroundColor: evento.cor }}
+                                >
+                                  {evento.titulo || 'Sem título'}
+                                </div>
+                              ))}
+                              {eventosdia.length > 3 && (
+                                <div className="text-xs text-gray-500">
+                                  +{eventosdia.length - 3} mais
+                                </div>
+                              )}
+                            </div>
+                          );
+                        }
+
+                        return dias;
+                      })()}
+                    </div>
+                  </div>
+                )}
+
+                {/* Lista de eventos do período */}
+                <div className="mt-6">
+                  <h3 className="font-semibold mb-4">Próximos Eventos</h3>
+                  {eventos.length === 0 ? (
+                    <p className="text-gray-500 text-center py-4">
+                      Nenhum evento cadastrado. Clique em "Novo Evento" para adicionar.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {eventos
+                        .sort((a, b) => new Date(a.dataInicio).getTime() - new Date(b.dataInicio).getTime())
+                        .slice(0, 10)
+                        .map((evento) => (
+                          <div
+                            key={evento.id}
+                            className="flex items-center gap-4 p-3 border rounded-lg hover:bg-gray-50 cursor-pointer"
+                            onClick={() => {
+                              setEventoEditando(evento);
+                              setModalEvento(true);
+                            }}
+                          >
+                            <div
+                              className="w-3 h-3 rounded-full"
+                              style={{ backgroundColor: evento.cor }}
+                            />
+                            <div className="flex-1">
+                              <div className="font-medium">{evento.titulo || 'Sem título'}</div>
+                              <div className="text-sm text-gray-500">
+                                {new Date(evento.dataInicio + 'T00:00:00').toLocaleDateString('pt-BR')}
+                                {!evento.diaInteiro && ` • ${evento.horaInicio} - ${evento.horaFim}`}
+                              </div>
+                            </div>
+                            <span
+                              className="text-xs px-2 py-1 rounded"
+                              style={{ backgroundColor: evento.cor + '20', color: evento.cor }}
+                            >
+                              {TIPOS_EVENTO.find((t) => t.id === evento.tipo)?.nome}
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Modal de Evento */}
+                {modalEvento && eventoEditando && (
+                  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+                      <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold">
+                          {eventos.find((e) => e.id === eventoEditando.id) ? 'Editar' : 'Novo'} Evento
+                        </h3>
+                        <button
+                          onClick={() => {
+                            setModalEvento(false);
+                            setEventoEditando(null);
+                          }}
+                          className="text-gray-500 hover:text-gray-700"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Tipo de Evento*</label>
+                          <select
+                            value={eventoEditando.tipo}
+                            onChange={(e) =>
+                              setEventoEditando({
+                                ...eventoEditando,
+                                tipo: e.target.value as EventoAgenda['tipo'],
+                                cor: TIPOS_EVENTO.find((t) => t.id === e.target.value)?.cor || '#EC4899',
+                              })
+                            }
+                            className="w-full px-4 py-2 border rounded-lg"
+                          >
+                            {TIPOS_EVENTO.map((tipo) => (
+                              <option key={tipo.id} value={tipo.id}>
+                                {tipo.nome}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Título*</label>
+                          <input
+                            type="text"
+                            value={eventoEditando.titulo}
+                            onChange={(e) =>
+                              setEventoEditando({ ...eventoEditando, titulo: e.target.value })
+                            }
+                            className="w-full px-4 py-2 border rounded-lg"
+                            placeholder="Ex: Férias de julho"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium mb-2">Descrição</label>
+                          <textarea
+                            value={eventoEditando.descricao}
+                            onChange={(e) =>
+                              setEventoEditando({ ...eventoEditando, descricao: e.target.value })
+                            }
+                            className="w-full px-4 py-2 border rounded-lg"
+                            rows={2}
+                            placeholder="Detalhes do evento..."
+                          />
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            id="diaInteiro"
+                            checked={eventoEditando.diaInteiro}
+                            onChange={(e) =>
+                              setEventoEditando({ ...eventoEditando, diaInteiro: e.target.checked })
+                            }
+                            className="w-4 h-4"
+                          />
+                          <label htmlFor="diaInteiro" className="text-sm">
+                            Dia inteiro
+                          </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Data Início*</label>
+                            <input
+                              type="date"
+                              value={eventoEditando.dataInicio}
+                              onChange={(e) =>
+                                setEventoEditando({ ...eventoEditando, dataInicio: e.target.value })
+                              }
+                              className="w-full px-4 py-2 border rounded-lg"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium mb-2">Data Fim*</label>
+                            <input
+                              type="date"
+                              value={eventoEditando.dataFim}
+                              onChange={(e) =>
+                                setEventoEditando({ ...eventoEditando, dataFim: e.target.value })
+                              }
+                              className="w-full px-4 py-2 border rounded-lg"
+                            />
+                          </div>
+                        </div>
+
+                        {!eventoEditando.diaInteiro && (
+                          <div className="grid grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Hora Início</label>
+                              <input
+                                type="time"
+                                value={eventoEditando.horaInicio}
+                                onChange={(e) =>
+                                  setEventoEditando({ ...eventoEditando, horaInicio: e.target.value })
+                                }
+                                className="w-full px-4 py-2 border rounded-lg"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-sm font-medium mb-2">Hora Fim</label>
+                              <input
+                                type="time"
+                                value={eventoEditando.horaFim}
+                                onChange={(e) =>
+                                  setEventoEditando({ ...eventoEditando, horaFim: e.target.value })
+                                }
+                                className="w-full px-4 py-2 border rounded-lg"
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex gap-3 mt-6">
+                        {eventos.find((e) => e.id === eventoEditando.id) && (
+                          <button
+                            onClick={() => {
+                              setEventos(eventos.filter((e) => e.id !== eventoEditando.id));
+                              setModalEvento(false);
+                              setEventoEditando(null);
+                            }}
+                            className="px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50"
+                          >
+                            Excluir
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            setModalEvento(false);
+                            setEventoEditando(null);
+                          }}
+                          className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (eventos.find((e) => e.id === eventoEditando.id)) {
+                              setEventos(
+                                eventos.map((e) => (e.id === eventoEditando.id ? eventoEditando : e))
+                              );
+                            } else {
+                              setEventos([...eventos, eventoEditando]);
+                            }
+                            setModalEvento(false);
+                            setEventoEditando(null);
+                          }}
+                          className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                        >
+                          Salvar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
